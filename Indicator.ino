@@ -10,18 +10,18 @@ OneWire ds(ONE_WIRE_PIN);
 #define DOT_FLAG        0x01 // indicate a dot with symbol
 #define MINUS_FLAG      0x02 // indicate G segment only
 #define BLANKZERO_FLAG  0x04 // do not indicate zero symbol
-#define SEGMENT_A 13
-#define SEGMENT_B 9
-#define SEGMENT_C 6
-#define SEGMENT_D 4
-#define SEGMENT_E 3
-#define SEGMENT_F 12
-#define SEGMENT_G 7
-#define SEGMENT_H 5
-#define CATHODE_FIRST   8
-#define CATHODE_SECOND  10
-#define CATHODE_THIRD   11 
-#define CATHODE_FOURTH  A0
+#define SEGMENT_A 13 
+#define SEGMENT_B 5
+#define SEGMENT_C 9
+#define SEGMENT_D 12
+#define SEGMENT_E A0
+#define SEGMENT_F A1
+#define SEGMENT_G 8
+#define SEGMENT_H 11
+#define CATHODE_FIRST 7   
+#define CATHODE_SECOND 6 
+#define CATHODE_THIRD 10 
+#define CATHODE_FOURTH A2
 
 const byte v_segments[]   = {SEGMENT_A, SEGMENT_B, SEGMENT_C, SEGMENT_D, SEGMENT_E, SEGMENT_F, SEGMENT_G, SEGMENT_H};
 const byte v_digits[]     = {CATHODE_FIRST, CATHODE_SECOND, CATHODE_THIRD, CATHODE_FOURTH}; 
