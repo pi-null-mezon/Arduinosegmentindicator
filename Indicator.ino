@@ -1,7 +1,7 @@
 #include <OneWire.h>
 
 //Sensor---------------------------------------------------
-#define ONE_WIRE_PIN A5
+#define ONE_WIRE_PIN 3
 #define MIN_MEASURE_DELAY 1000 // it is not a milliseconds, just a cycles number
 #define MEASURE_RESOLUTION 0.0625
 OneWire ds(ONE_WIRE_PIN);
@@ -10,18 +10,18 @@ OneWire ds(ONE_WIRE_PIN);
 #define DOT_FLAG        0x01 // indicate a dot with symbol
 #define MINUS_FLAG      0x02 // indicate G segment only
 #define BLANKZERO_FLAG  0x04 // do not indicate zero symbol
-#define SEGMENT_A 13
-#define SEGMENT_B 9
-#define SEGMENT_C 6
-#define SEGMENT_D 4
-#define SEGMENT_E 3
-#define SEGMENT_F 12
-#define SEGMENT_G 7
-#define SEGMENT_H 5
-#define CATHODE_FIRST   8
-#define CATHODE_SECOND  10
-#define CATHODE_THIRD   11 
-#define CATHODE_FOURTH  A0
+#define SEGMENT_A 16
+#define SEGMENT_B A1 
+#define SEGMENT_C 6 
+#define SEGMENT_D 8
+#define SEGMENT_E 9 
+#define SEGMENT_F 14
+#define SEGMENT_G 5
+#define SEGMENT_H 7
+#define CATHODE_FIRST   4
+#define CATHODE_SECOND  A0
+#define CATHODE_THIRD   15 
+#define CATHODE_FOURTH  10
 
 const byte v_segments[]   = {SEGMENT_A, SEGMENT_B, SEGMENT_C, SEGMENT_D, SEGMENT_E, SEGMENT_F, SEGMENT_G, SEGMENT_H};
 const byte v_digits[]     = {CATHODE_FIRST, CATHODE_SECOND, CATHODE_THIRD, CATHODE_FOURTH}; 
@@ -30,6 +30,7 @@ const byte v_symbolCode[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7
 //Miscellaneous--------------------------------------------------
 #define MEASUREMENTS_REGIME 0x01
 #define ANALOGREAD_REGIME 0x02
+#define PARSESERIAL_REGIME 0x03
 #define ANALOG_PIN A6
 #define BUTTON_PIN 2
 #define MAX_SENSORS_COUNT 8
@@ -40,13 +41,13 @@ byte      v_addr[8 * MAX_SENSORS_COUNT];
 byte      addr[8];
 byte      m_sensors;
 int       analogvalue;
-byte      regime = MEASUREMENTS_REGIME; 
+byte      regime = PARSESERIAL_REGIME; 
 //-------------------------------------------------------------------------
 
 void setup() {
   initIndicator();
   initSensors();
-  
+  Serial.begin(9600);
   // button initialization 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(0, buttonPressed, FALLING); // 0 interrupt for Arduino Uno linked with 2 GIO 
@@ -54,13 +55,14 @@ void setup() {
 
 //-------------------------------------------------------------------------
 void loop() {
+  
   switch(regime) {
     
     case MEASUREMENTS_REGIME:
       for(byte k = 0; k < m_sensors; k++) {
         for(byte i = 0; i < 8; i++)
           addr[i] = v_addr[i + k*8];
-        startConversion(addr);  
+        startConversion(addr);
         if(measure < 0.0) {
           measure = - measure;
           v_symbols[0] = (byte)(measure*10) % 10;
@@ -113,7 +115,7 @@ void loop() {
             }
         }  
         measure = readSensor(addr);
-        analogvalue = analogRead(ANALOG_PIN); 
+        //analogvalue = analogRead(ANALOG_PIN); 
         measureDelay = MIN_MEASURE_DELAY + (analogvalue << 4);
       }      
       break;
@@ -130,6 +132,24 @@ void loop() {
         setSymbol(3, v_symbols[3], 0);
       }
       analogvalue = analogRead(ANALOG_PIN); 
+      break;
+
+      case PARSESERIAL_REGIME:
+      if(Serial.available()) {
+        int res = Serial.parseInt();
+        v_symbols[0] = (byte)(res % 10);
+        v_symbols[1] = (byte)((res/10) % 10);
+        v_symbols[2] = (byte)((res/100) % 10);
+        v_symbols[3] = (byte)((res/1000) % 10);
+      }
+      for(uint16_t j = 0; j < (MIN_MEASURE_DELAY >> 1); j++) {       
+        setSymbol(0, v_symbols[0], 0);
+        setSymbol(1, v_symbols[1], 0);
+        setSymbol(2, v_symbols[2], 0);
+        setSymbol(3, v_symbols[3], 0);
+      }
+      for(byte j = 0; j < 4; j++)
+        setSymbol(j, 0, BLANKZERO_FLAG);
       break;
   }
     
@@ -249,8 +269,11 @@ void buttonPressed()
           regime = ANALOGREAD_REGIME;
           break;
         case ANALOGREAD_REGIME:
-          regime = MEASUREMENTS_REGIME;
-          break;    
+          regime = PARSESERIAL_REGIME;
+          break;
+        case PARSESERIAL_REGIME:
+          regime = MEASUREMENTS_REGIME; 
+          break;
       }
     }
   }
