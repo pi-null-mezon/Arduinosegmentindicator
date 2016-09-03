@@ -1,8 +1,14 @@
+/*
+ Location note:
+ В этом скетче распиновка соответсвует плате индикации на базе Arduino micro,
+ которая, по моим данным, была установлена у бабушки Маши в Гуте 
+*/
+
 #include <OneWire.h>
 
 //Sensor---------------------------------------------------
 #define ONE_WIRE_PIN 3
-#define MIN_MEASURE_DELAY 1000 // it is not a milliseconds, just a cycles number
+#define MIN_MEASURE_DELAY 1500 // it is not a milliseconds, just a cycles number
 #define MEASURE_RESOLUTION 0.0625
 OneWire ds(ONE_WIRE_PIN);
 
@@ -41,7 +47,7 @@ byte      v_addr[8 * MAX_SENSORS_COUNT];
 byte      addr[8];
 byte      m_sensors;
 int       analogvalue;
-byte      regime = PARSESERIAL_REGIME; 
+byte      regime = MEASUREMENTS_REGIME; 
 //-------------------------------------------------------------------------
 
 void setup() {
@@ -116,7 +122,8 @@ void loop() {
         }  
         measure = readSensor(addr);
         //analogvalue = analogRead(ANALOG_PIN); 
-        measureDelay = MIN_MEASURE_DELAY + (analogvalue << 4);
+        //measureDelay = MIN_MEASURE_DELAY + (analogvalue << 4);
+        measureDelay = 10000 - (225.0 * measure);
       }      
       break;
       
