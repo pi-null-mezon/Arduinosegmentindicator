@@ -7,7 +7,7 @@
 #include <OneWire.h>
 
 //Sensor---------------------------------------------------
-#define ONE_WIRE_PIN 3
+#define ONE_WIRE_PIN A0
 #define MIN_MEASURE_DELAY 1500 // it is not a milliseconds, just a cycles number
 #define MEASURE_RESOLUTION 0.0625
 OneWire ds(ONE_WIRE_PIN);
@@ -16,18 +16,18 @@ OneWire ds(ONE_WIRE_PIN);
 #define DOT_FLAG        0x01 // indicate a dot with symbol
 #define MINUS_FLAG      0x02 // indicate G segment only
 #define BLANKZERO_FLAG  0x04 // do not indicate zero symbol
-#define SEGMENT_A 16
-#define SEGMENT_B A1 
-#define SEGMENT_C 6 
-#define SEGMENT_D 8
-#define SEGMENT_E 9 
-#define SEGMENT_F 14
-#define SEGMENT_G 5
-#define SEGMENT_H 7
-#define CATHODE_FIRST   4
-#define CATHODE_SECOND  A0
-#define CATHODE_THIRD   15 
-#define CATHODE_FOURTH  10
+#define SEGMENT_A   4
+#define SEGMENT_B   8  
+#define SEGMENT_C   12 
+#define SEGMENT_D   11
+#define SEGMENT_E   10  
+#define SEGMENT_F   5
+#define SEGMENT_G   A5
+#define SEGMENT_H   A7
+#define CATHODE_FIRST  9
+#define CATHODE_SECOND 7
+#define CATHODE_THIRD  6 
+#define CATHODE_FOURTH 3
 
 const byte v_segments[]   = {SEGMENT_A, SEGMENT_B, SEGMENT_C, SEGMENT_D, SEGMENT_E, SEGMENT_F, SEGMENT_G, SEGMENT_H};
 const byte v_digits[]     = {CATHODE_FIRST, CATHODE_SECOND, CATHODE_THIRD, CATHODE_FOURTH}; 
@@ -37,7 +37,7 @@ const byte v_symbolCode[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7
 #define MEASUREMENTS_REGIME 0x01
 #define ANALOGREAD_REGIME 0x02
 #define PARSESERIAL_REGIME 0x03
-#define ANALOG_PIN A6
+#define ANALOG_PIN A3
 #define BUTTON_PIN 2
 #define MAX_SENSORS_COUNT 8
 uint16_t  measureDelay = MIN_MEASURE_DELAY; 
@@ -47,7 +47,7 @@ byte      v_addr[8 * MAX_SENSORS_COUNT];
 byte      addr[8];
 byte      m_sensors;
 int       analogvalue;
-byte      regime = MEASUREMENTS_REGIME; 
+byte      regime = ANALOGREAD_REGIME; 
 //-------------------------------------------------------------------------
 
 void setup() {
