@@ -1,5 +1,7 @@
 #include <OneWire.h>
 
+// Индикатор на основе Arduino Nano, находится в Новозыбкове
+
 //Sensor---------------------------------------------------
 #define ONE_WIRE_PIN A5
 #define MIN_MEASURE_DELAY 1000 // it is not a milliseconds, just a cycles number
