@@ -1,18 +1,8 @@
-#include <OneWire.h>
-
-// Индикатор на основе Arduino Nano, находится в Новозыбкове
-
-//Sensor---------------------------------------------------
-#define ONE_WIRE_PIN A5
-#define MIN_MEASURE_DELAY 1000 // it is not a milliseconds, just a cycles number
-#define MEASURE_RESOLUTION 0.0625
-OneWire ds(ONE_WIRE_PIN);
-
 //Indicator------------------------------------------------
 #define DOT_FLAG        0x01 // indicate a dot with symbol
 #define MINUS_FLAG      0x02 // indicate G segment only
 #define BLANKZERO_FLAG  0x04 // do not indicate zero symbol
-#define SEGMENT_A 13
+#define SEGMENT_A A4
 #define SEGMENT_B 9
 #define SEGMENT_C 6
 #define SEGMENT_D 4
@@ -23,8 +13,7 @@ OneWire ds(ONE_WIRE_PIN);
 #define CATHODE_FIRST   8
 #define CATHODE_SECOND  10
 #define CATHODE_THIRD   11 
-#define CATHODE_FOURTH  A0
-
+#define CATHODE_FOURTH  A5
 const byte v_segments[]   = {SEGMENT_A, SEGMENT_B, SEGMENT_C, SEGMENT_D, SEGMENT_E, SEGMENT_F, SEGMENT_G, SEGMENT_H};
 const byte v_digits[]     = {CATHODE_FIRST, CATHODE_SECOND, CATHODE_THIRD, CATHODE_FOURTH}; 
 const byte v_symbolCode[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F}; // a logic here is like in string H G F E D C B A, so A is a first bit, B is a second bit and so on
@@ -32,109 +21,66 @@ const byte v_symbolCode[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7
 //Miscellaneous--------------------------------------------------
 #define MEASUREMENTS_REGIME 0x01
 #define ANALOGREAD_REGIME 0x02
-#define ANALOG_PIN A6
+#define SERIALREAD_REGIME 0x03
+#define ANALOG_PIN A1
 #define BUTTON_PIN 2
 #define MAX_SENSORS_COUNT 8
-uint16_t  measureDelay = MIN_MEASURE_DELAY; 
+uint16_t  fadeCycles = 500; 
 byte      v_symbols[4];
-float     measure;
-byte      v_addr[8 * MAX_SENSORS_COUNT];
-byte      addr[8];
-byte      m_sensors;
-int       analogvalue;
-byte      regime = MEASUREMENTS_REGIME; 
+int       value;
+byte      regime = SERIALREAD_REGIME; 
 //-------------------------------------------------------------------------
 
 void setup() {
+  // Initialize custom board facilities
   initIndicator();
-  initSensors();
-  
-  // button initialization 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(0, buttonPressed, FALLING); // 0 interrupt for Arduino Uno linked with 2 GIO 
+  //pinMode(BUTTON_PIN, INPUT_PULLUP);
+  //attachInterrupt(0, buttonPressed, FALLING); // 0 interrupt for Arduino Uno linked with 2 GIO 
+  Serial.begin(9600);
 }
 
 //-------------------------------------------------------------------------
 void loop() {
-  switch(regime) {
-    
-    case MEASUREMENTS_REGIME:
-      for(byte k = 0; k < m_sensors; k++) {
-        for(byte i = 0; i < 8; i++)
-          addr[i] = v_addr[i + k*8];
-        startConversion(addr);  
-        if(measure < 0.0) {
-          measure = - measure;
-          v_symbols[0] = (byte)(measure*10) % 10;
-          v_symbols[1] = (byte)measure % 10;
-          v_symbols[2] = (byte)(measure/10) % 10;
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, v_symbols[0], 0);
-                setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, 0, (i > 2) ? MINUS_FLAG : BLANKZERO_FLAG);
-            } 
-          for(uint16_t j = 0; j < measureDelay; j++) {
-              setSymbol(0, v_symbols[0], 0);
-              setSymbol(1, v_symbols[1], DOT_FLAG);
-              setSymbol(2, v_symbols[2], BLANKZERO_FLAG);
-              setSymbol(3, v_symbols[3], MINUS_FLAG);
-          }
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, i > 2 ? 0:v_symbols[0], ((i < 3) && (v_symbols[0] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(1, i > 1 ? 0:v_symbols[1], ((i < 2) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 0 ? 0:v_symbols[2], ((i < 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, 0, BLANKZERO_FLAG);
-            }   
-        } else {
-          v_symbols[0] = (byte)(measure*10) % 10;
-          v_symbols[1] = (byte)measure % 10;
-          v_symbols[2] = (byte)(measure/10) % 10;
-          v_symbols[3] = (byte)(measure/100) % 10;
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, v_symbols[0], 0);
-                setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, i > 2 ? v_symbols[3]:0, ((i > 2) && (v_symbols[3] == 0)) ? 0 : BLANKZERO_FLAG);
-            }
-          for(uint16_t j = 0; j < measureDelay; j++) {
-              setSymbol(0, v_symbols[0], 0);
-              setSymbol(1, v_symbols[1], DOT_FLAG);
-              setSymbol(2, v_symbols[2], 0);
-              setSymbol(3, v_symbols[3], BLANKZERO_FLAG);
-          } 
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, i > 2 ? 0:v_symbols[0], ((i < 3) && (v_symbols[0] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(1, i > 1 ? 0:v_symbols[1], ((i < 2) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 0 ? 0:v_symbols[2], ((i < 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, 0, BLANKZERO_FLAG);
-            }
-        }  
-        measure = readSensor(addr);
-        analogvalue = analogRead(ANALOG_PIN); 
-        measureDelay = MIN_MEASURE_DELAY + (analogvalue << 4);
-      }      
-      break;
-      
+  indicate();
+  switch(regime) {    
     case ANALOGREAD_REGIME:
-      v_symbols[0] = (byte)(analogvalue % 10);
-      v_symbols[1] = (byte)((analogvalue/10) % 10);
-      v_symbols[2] = (byte)((analogvalue/100) % 10);
-      v_symbols[3] = (byte)((analogvalue/1000) % 10);
-      for(uint16_t j = 0; j < (MIN_MEASURE_DELAY >> 2); j++) {       
+      value = analogRead(ANALOG_PIN);
+      v_symbols[0] = (byte)(value % 10);
+      v_symbols[1] = (byte)((value/10) % 10);
+      v_symbols[2] = (byte)((value/100) % 10);
+      v_symbols[3] = (byte)((value/1000) % 10);     
+      break;           
+  }  
+}
+
+void serialEvent() {   
+  for(byte i = 0; i < 4; i++)
+    for(uint16_t j = 0; j < fadeCycles; j++) {
+        setSymbol(0, 0, BLANKZERO_FLAG);
+        setSymbol(1, i > 0 ? 0:v_symbols[1], (i > 0) ? BLANKZERO_FLAG : 0);
+        setSymbol(2, i > 1 ? 0:v_symbols[2], (i > 1) ? BLANKZERO_FLAG : 0);
+        setSymbol(3, i > 2 ? 0:v_symbols[3], (i > 2) ? BLANKZERO_FLAG : 0);
+    }  
+    value = Serial.parseInt();
+    v_symbols[0] = (byte)(value % 10);
+    v_symbols[1] = (byte)((value/10) % 10);
+    v_symbols[2] = (byte)((value/100) % 10);
+    v_symbols[3] = (byte)((value/1000) % 10); 
+    for(byte i = 0; i < 4; i++)
+    for(uint16_t j = 0; j < fadeCycles; j++) {
         setSymbol(0, v_symbols[0], 0);
-        setSymbol(1, v_symbols[1], 0);
-        setSymbol(2, v_symbols[2], 0);
-        setSymbol(3, v_symbols[3], 0);
-      }
-      analogvalue = analogRead(ANALOG_PIN); 
-      break;
-  }
-    
+        setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
+        setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
+        setSymbol(3, i > 2 ? v_symbols[3]:0, ((i > 2) && (v_symbols[3] == 0)) ? 0 : BLANKZERO_FLAG);
+    }   
+}
+
+void indicate()
+{
+    setSymbol(0, v_symbols[0], v_symbols[1] > 0 ? 0: BLANKZERO_FLAG);
+    setSymbol(1, v_symbols[1], v_symbols[2] > 0 ? 0: BLANKZERO_FLAG);
+    setSymbol(2, v_symbols[2], v_symbols[3] > 0 ? 0: BLANKZERO_FLAG);
+    setSymbol(3, v_symbols[3], BLANKZERO_FLAG); 
 }
 
 //-------------------------------------------------------------------------
@@ -195,48 +141,6 @@ void setSymbol(byte digit, byte value, byte flags) // use v_symbolCode vector fo
     digitalWrite(v_digits[i], i == digit ? LOW : HIGH);
 }
 
-//-------------------------------------------------------------------------
-
-void initSensors()
-{
-  m_sensors = 0;
-  byte addr[8];
-  while(ds.search(addr)) {
-    for(byte i = 0; i < 8; i++)
-      v_addr[i + 8 * m_sensors] = addr[i];
-    m_sensors++;     
-  }
-}
-
-//-------------------------------------------------------------------------
-
-void startConversion(byte *addres)
-{
-  noInterrupts();
-  ds.reset();
-  ds.select(addres);
-  ds.write(0x44, 1); // start conversion, with parasite power on at the end
-  interrupts();  
-}
-
-//-------------------------------------------------------------------------
-
-float readSensor(byte *addres)
-{
-  noInterrupts();
-  ds.reset();
-  ds.select(addres);    
-  ds.write(0xBE); // start read scratchpad  
-  byte lsb = ds.read();  
-  byte msb = ds.read();
-  byte sign = msb & 0xF0;
-  interrupts();
-  if(sign == 0xF0)
-    return -((int)((byte)~lsb) | ((int)((byte)~msb) << 8)) * MEASURE_RESOLUTION;
-  else
-    return ((int)lsb | ((int)msb << 8)) * MEASURE_RESOLUTION;      
-}
-
 //----------------------------------------------------------------------
 
 void buttonPressed()
@@ -245,7 +149,7 @@ void buttonPressed()
   if(digitalRead(BUTTON_PIN) == LOW) {
     delayMicroseconds(1000);
     if(digitalRead(BUTTON_PIN) == LOW) {
-      measureDelay = 0;
+      fadeCycles = 0;
       switch(regime)  {
         case MEASUREMENTS_REGIME:
           regime = ANALOGREAD_REGIME;
@@ -257,4 +161,5 @@ void buttonPressed()
     }
   }
 }
+
 //----------------------------------------------------------------------
