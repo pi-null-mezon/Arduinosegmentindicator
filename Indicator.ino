@@ -77,10 +77,10 @@ void serialEvent() {
 
 void indicate()
 {
-    setSymbol(0, v_symbols[0], v_symbols[1] > 0 ? 0: BLANKZERO_FLAG);
-    setSymbol(1, v_symbols[1], v_symbols[2] > 0 ? 0: BLANKZERO_FLAG);
-    setSymbol(2, v_symbols[2], v_symbols[3] > 0 ? 0: BLANKZERO_FLAG);
-    setSymbol(3, v_symbols[3], BLANKZERO_FLAG); 
+    setSymbol(0, v_symbols[0], 0);
+    setSymbol(1, v_symbols[1], 0);
+    setSymbol(2, v_symbols[2], 0);
+    setSymbol(3, v_symbols[3], 0); 
 }
 
 //-------------------------------------------------------------------------
