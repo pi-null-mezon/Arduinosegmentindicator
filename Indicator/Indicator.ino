@@ -25,7 +25,7 @@ const byte v_symbolCode[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7
 #define ANALOG_PIN A1
 #define BUTTON_PIN 2
 #define MAX_SENSORS_COUNT 8
-uint16_t  fadeCycles = 500; 
+uint16_t  fadeCycles = 250; 
 byte      v_symbols[4];
 int       value;
 byte      regime = SERIALREAD_REGIME; 

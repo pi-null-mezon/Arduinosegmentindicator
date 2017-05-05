@@ -11,7 +11,7 @@ class QHardwarestatusexplorer : public QObject
 {
     Q_OBJECT
 public:
-    explicit QHardwarestatusexplorer(QObject *parent = 0, uint _timems=5000);
+    explicit QHardwarestatusexplorer(QObject *parent = 0, uint _timems=4000);
     ~QHardwarestatusexplorer();
 signals:
 
@@ -19,6 +19,7 @@ private slots:
     void readproc();
     void askcpuload();
     void writecpuloadtoserialport(int _val);
+    void searchcomdevice();
 
 private:
 
