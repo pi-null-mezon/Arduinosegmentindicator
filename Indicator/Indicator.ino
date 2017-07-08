@@ -1,12 +1,16 @@
+#include <Adafruit_NeoPixel.h>
 #include <OneWire.h>
 
 // Индикатор на основе Arduino Nano, находится у меня (бронзовые стойки)
 
 //Sensor---------------------------------------------------
-#define ONE_WIRE_PIN A3
+#define ONE_WIRE_PIN A0
 #define MIN_MEASURE_DELAY 1000 // it is not a milliseconds, just a cycles number
 #define MEASURE_RESOLUTION 0.0625
 OneWire ds(ONE_WIRE_PIN);
+
+// NeoPixel
+Adafruit_NeoPixel neopixel = Adafruit_NeoPixel(1, 13, NEO_GRB + NEO_KHZ800);
 
 //Indicator------------------------------------------------
 #define DOT_FLAG        0x01 // indicate a dot with symbol
@@ -43,21 +47,24 @@ byte      v_addr[8 * MAX_SENSORS_COUNT];
 byte      addr[8];
 byte      m_sensors;
 int       analogvalue;
-byte      regime = MEASUREMENTS_REGIME; 
+byte      regime = ANALOGREAD_REGIME;//MEASUREMENTS_REGIME; 
 //-------------------------------------------------------------------------
 
 void setup() {
-  Serial.begin(115200);
+  initNeoPixel();
   initIndicator();
   initSensors();
   
   // button initialization 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(0, buttonPressed, FALLING); // 0 interrupt for Arduino Uno linked with 2 GPIO 
+
+  Serial.begin(115200);
 }
 
 //-------------------------------------------------------------------------
 void loop() {
+  Serial.println("Loop");
   switch(regime) {
     
     case MEASUREMENTS_REGIME:
@@ -140,6 +147,15 @@ void loop() {
 }
 
 //-------------------------------------------------------------------------
+void initNeoPixel()
+{
+  // This initializes the NeoPixel library
+  neopixel.begin();  
+  neopixel.setPixelColor(0, 255, 0, 0); // R,G,B     
+  neopixel.show();
+}
+
+//-------------------------------------------------------------------------
 
 void initIndicator()
 {
@@ -209,7 +225,6 @@ void initSensors()
       v_addr[i + 8 * m_sensors] = addr[i];
     m_sensors++;     
   }
-  Serial.println(m_sensors);
 }
 
 //-------------------------------------------------------------------------
