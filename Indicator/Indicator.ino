@@ -1,23 +1,27 @@
+#include <Adafruit_BMP085.h>
 #include <Adafruit_NeoPixel.h>
 #include <OneWire.h>
 
 // Индикатор на основе Arduino Nano, находится у меня (бронзовые стойки)
 
-//Sensor---------------------------------------------------
-#define ONE_WIRE_PIN A0
-#define MIN_MEASURE_DELAY 1000 // it is not a milliseconds, just a cycles number
+// DS18b20 oneWire tmperature sensors
+#define ONE_WIRE_PIN A6
+#define MIN_MEASURE_DELAY 7000 // it is not a milliseconds, just a cycles number
 #define MEASURE_RESOLUTION 0.0625
 OneWire ds(ONE_WIRE_PIN);
 
 // NeoPixel
 Adafruit_NeoPixel neopixel = Adafruit_NeoPixel(1, 13, NEO_GRB + NEO_KHZ800);
 
+// BPM180 barometric and temperature sensor
+Adafruit_BMP085 bmp;
+
 //Indicator------------------------------------------------
 #define DOT_FLAG        0x01 // indicate a dot with symbol
 #define MINUS_FLAG      0x02 // indicate G segment only
 #define BLANKZERO_FLAG  0x04 // do not indicate zero symbol
 
-#define SEGMENT_A A4
+#define SEGMENT_A A0
 #define SEGMENT_B 9
 #define SEGMENT_C 6
 #define SEGMENT_D 4
@@ -28,7 +32,7 @@ Adafruit_NeoPixel neopixel = Adafruit_NeoPixel(1, 13, NEO_GRB + NEO_KHZ800);
 #define CATHODE_FIRST   8
 #define CATHODE_SECOND  10
 #define CATHODE_THIRD   11 
-#define CATHODE_FOURTH  A5
+#define CATHODE_FOURTH  A1
 
 const byte v_segments[]   = {SEGMENT_A, SEGMENT_B, SEGMENT_C, SEGMENT_D, SEGMENT_E, SEGMENT_F, SEGMENT_G, SEGMENT_H};
 const byte v_digits[]     = {CATHODE_FIRST, CATHODE_SECOND, CATHODE_THIRD, CATHODE_FOURTH}; 
@@ -37,7 +41,7 @@ const byte v_symbolCode[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7
 //Miscellaneous--------------------------------------------------
 #define MEASUREMENTS_REGIME 0x01
 #define ANALOGREAD_REGIME 0x02
-#define ANALOG_PIN A7
+#define ANALOG_PIN A2
 #define BUTTON_PIN 2
 #define MAX_SENSORS_COUNT 8
 uint16_t  measureDelay = MIN_MEASURE_DELAY; 
@@ -47,7 +51,7 @@ byte      v_addr[8 * MAX_SENSORS_COUNT];
 byte      addr[8];
 byte      m_sensors;
 int       analogvalue;
-byte      regime = ANALOGREAD_REGIME;//MEASUREMENTS_REGIME; 
+byte      regime = MEASUREMENTS_REGIME; 
 //-------------------------------------------------------------------------
 
 void setup() {
@@ -58,75 +62,26 @@ void setup() {
   // button initialization 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(0, buttonPressed, FALLING); // 0 interrupt for Arduino Uno linked with 2 GPIO 
-
-  Serial.begin(115200);
 }
 
 //-------------------------------------------------------------------------
 void loop() {
-  Serial.println("Loop");
+  
   switch(regime) {
     
     case MEASUREMENTS_REGIME:
+      // Let's start from ds18b20 sensors
       for(byte k = 0; k < m_sensors; k++) {
         for(byte i = 0; i < 8; i++)
           addr[i] = v_addr[i + k*8];
-        startConversion(addr);  
-        if(measure < 0.0) {
-          measure = - measure;
-          v_symbols[0] = (byte)(measure*10) % 10;
-          v_symbols[1] = (byte)measure % 10;
-          v_symbols[2] = (byte)(measure/10) % 10;
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, v_symbols[0], 0);
-                setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, 0, (i > 2) ? MINUS_FLAG : BLANKZERO_FLAG);
-            } 
-          for(uint16_t j = 0; j < measureDelay; j++) {
-              setSymbol(0, v_symbols[0], 0);
-              setSymbol(1, v_symbols[1], DOT_FLAG);
-              setSymbol(2, v_symbols[2], BLANKZERO_FLAG);
-              setSymbol(3, v_symbols[3], MINUS_FLAG);
-          }
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, i > 2 ? 0:v_symbols[0], ((i < 3) && (v_symbols[0] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(1, i > 1 ? 0:v_symbols[1], ((i < 2) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 0 ? 0:v_symbols[2], ((i < 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, 0, BLANKZERO_FLAG);
-            }   
-        } else {
-          v_symbols[0] = (byte)(measure*10) % 10;
-          v_symbols[1] = (byte)measure % 10;
-          v_symbols[2] = (byte)(measure/10) % 10;
-          v_symbols[3] = (byte)(measure/100) % 10;
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, v_symbols[0], 0);
-                setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, i > 2 ? v_symbols[3]:0, ((i > 2) && (v_symbols[3] == 0)) ? 0 : BLANKZERO_FLAG);
-            }
-          for(uint16_t j = 0; j < measureDelay; j++) {
-              setSymbol(0, v_symbols[0], 0);
-              setSymbol(1, v_symbols[1], DOT_FLAG);
-              setSymbol(2, v_symbols[2], 0);
-              setSymbol(3, v_symbols[3], BLANKZERO_FLAG);
-          } 
-          for(byte i = 0; i < 4; i++)
-            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
-                setSymbol(0, i > 2 ? 0:v_symbols[0], ((i < 3) && (v_symbols[0] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(1, i > 1 ? 0:v_symbols[1], ((i < 2) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(2, i > 0 ? 0:v_symbols[2], ((i < 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
-                setSymbol(3, 0, BLANKZERO_FLAG);
-            }
-        }  
         measure = readSensor(addr);
-        analogvalue = analogRead(ANALOG_PIN); 
-        measureDelay = MIN_MEASURE_DELAY + (analogvalue << 4);
-      }      
+        startConversion(addr);  
+        indicate();
+      }
+      // Then go to the bmp180
+      measure = bmp.readTemperature();
+      indicate();
+            
       break;
       
     case ANALOGREAD_REGIME:
@@ -151,10 +106,65 @@ void initNeoPixel()
 {
   // This initializes the NeoPixel library
   neopixel.begin();  
-  neopixel.setPixelColor(0, 255, 0, 0); // R,G,B     
+  neopixel.setPixelColor(0, 0, 0, 33); // R,G,B     
   neopixel.show();
 }
 
+//-------------------------------------------------------------------------
+void indicate() 
+{
+  if(measure < 0.0) {
+          measure = - measure;
+          v_symbols[0] = (byte)(measure*10) % 10;
+          v_symbols[1] = (byte)measure % 10;
+          v_symbols[2] = (byte)(measure/10) % 10;
+          for(byte i = 0; i < 4; i++)
+            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
+                setSymbol(0, v_symbols[0], 0);
+                setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG | DOT_FLAG);
+                setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
+                setSymbol(3, 0, (i > 2) ? MINUS_FLAG : BLANKZERO_FLAG);
+            } 
+          for(uint16_t j = 0; j < measureDelay; j++) {
+              setSymbol(0, v_symbols[0], 0);
+              setSymbol(1, v_symbols[1], DOT_FLAG);
+              setSymbol(2, v_symbols[2], BLANKZERO_FLAG);
+              setSymbol(3, v_symbols[3], MINUS_FLAG);
+          }
+          for(byte i = 0; i < 4; i++)
+            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
+                setSymbol(0, 0, BLANKZERO_FLAG);
+                setSymbol(1, i > 0 ? 0:v_symbols[1], BLANKZERO_FLAG | DOT_FLAG);
+                setSymbol(2, i > 1 ? 0:v_symbols[2], BLANKZERO_FLAG);
+                setSymbol(3, i > 2 ? 0:v_symbols[3], BLANKZERO_FLAG);
+            }   
+        } else {
+          v_symbols[0] = (byte)(measure*10) % 10;
+          v_symbols[1] = (byte)measure % 10;
+          v_symbols[2] = (byte)(measure/10) % 10;
+          v_symbols[3] = (byte)(measure/100) % 10;
+          for(byte i = 0; i < 4; i++)
+            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
+                setSymbol(0, v_symbols[0], 0);
+                setSymbol(1, i > 0 ? v_symbols[1]:0, ((i > 0) && (v_symbols[1] == 0)) ? 0 : BLANKZERO_FLAG | DOT_FLAG);
+                setSymbol(2, i > 1 ? v_symbols[2]:0, ((i > 1) && (v_symbols[2] == 0)) ? 0 : BLANKZERO_FLAG);
+                setSymbol(3, i > 2 ? v_symbols[3]:0, ((i > 2) && (v_symbols[3] == 0)) ? 0 : BLANKZERO_FLAG);
+            }
+          for(uint16_t j = 0; j < measureDelay; j++) {
+              setSymbol(0, v_symbols[0], 0);
+              setSymbol(1, v_symbols[1], DOT_FLAG);
+              setSymbol(2, v_symbols[2], 0);
+              setSymbol(3, v_symbols[3], BLANKZERO_FLAG);
+          } 
+          for(byte i = 0; i < 4; i++)
+            for(uint16_t j = 0; j < (measureDelay >> 3); j++) {
+                setSymbol(0, 0, BLANKZERO_FLAG);
+                setSymbol(1, i > 0 ? 0:v_symbols[1], BLANKZERO_FLAG | DOT_FLAG);
+                setSymbol(2, i > 1 ? 0:v_symbols[2], BLANKZERO_FLAG);
+                setSymbol(3, i > 2 ? 0:v_symbols[3], BLANKZERO_FLAG);
+            }
+        }
+}
 //-------------------------------------------------------------------------
 
 void initIndicator()
@@ -217,6 +227,7 @@ void setSymbol(byte digit, byte value, byte flags) // use v_symbolCode vector fo
 
 void initSensors()
 {
+  // First let's init ds18b20
   m_sensors = 0;
   byte addr[8];
   while(ds.search(addr)) {
@@ -225,6 +236,8 @@ void initSensors()
       v_addr[i + 8 * m_sensors] = addr[i];
     m_sensors++;     
   }
+  // Secondly bmp180
+  bmp.begin();
 }
 
 //-------------------------------------------------------------------------
