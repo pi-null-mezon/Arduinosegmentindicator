@@ -1,12 +1,13 @@
+#include <OneWire.h>
 #include <Adafruit_BMP085.h>
 #include <Adafruit_NeoPixel.h>
-#include <OneWire.h>
+
 
 // Индикатор на основе Arduino Nano, находится у меня (бронзовые стойки)
 
 // DS18b20 oneWire tmperature sensors
-#define ONE_WIRE_PIN A6
-#define MIN_MEASURE_DELAY 7000 // it is not a milliseconds, just a cycles number
+#define ONE_WIRE_PIN A3
+#define MIN_MEASURE_DELAY 5000 // it is not a milliseconds, just a cycles number
 #define MEASURE_RESOLUTION 0.0625
 OneWire ds(ONE_WIRE_PIN);
 
@@ -58,7 +59,6 @@ void setup() {
   initNeoPixel();
   initIndicator();
   initSensors();
-  
   // button initialization 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(0, buttonPressed, FALLING); // 0 interrupt for Arduino Uno linked with 2 GPIO 
@@ -68,20 +68,21 @@ void setup() {
 void loop() {
   
   switch(regime) {
-    
+      
     case MEASUREMENTS_REGIME:
       // Let's start from ds18b20 sensors
       for(byte k = 0; k < m_sensors; k++) {
-        for(byte i = 0; i < 8; i++)
-          addr[i] = v_addr[i + k*8];
-        measure = readSensor(addr);
-        startConversion(addr);  
-        indicate();
+        if(k < m_sensors - 1 ) { // DS18B20 
+          for(byte i = 0; i < 8; i++) {
+            addr[i] = v_addr[i + k*8];
+          }
+          measure = readSensor(addr);
+        } else { // BMP180
+          measure = bmp.readTemperature();  
+        }
+        updateColor(50,k);
+        indicate(); 
       }
-      // Then go to the bmp180
-      measure = bmp.readTemperature();
-      indicate();
-            
       break;
       
     case ANALOGREAD_REGIME:
@@ -106,7 +107,14 @@ void initNeoPixel()
 {
   // This initializes the NeoPixel library
   neopixel.begin();  
-  neopixel.setPixelColor(0, 0, 0, 33); // R,G,B     
+}
+
+//-------------------------------------------------------------------------
+void updateColor(byte _intensity, byte _item)
+{ 
+  neopixel.setPixelColor(0, ((_item == 0) || (_item == 3)) ? _intensity : 0,
+                            _item == 1 ? _intensity : 0,
+                            _item == 2 ? _intensity : 0); // R,G,B     
   neopixel.show();
 }
 
@@ -231,24 +239,14 @@ void initSensors()
   m_sensors = 0;
   byte addr[8];
   while(ds.search(addr)) {
-    Serial.println("Found sensor!");
-    for(byte i = 0; i < 8; i++)
+    for(byte i = 0; i < 8; i++) {
       v_addr[i + 8 * m_sensors] = addr[i];
+    }
     m_sensors++;     
   }
   // Secondly bmp180
   bmp.begin();
-}
-
-//-------------------------------------------------------------------------
-
-void startConversion(byte *addres)
-{
-  noInterrupts();
-  ds.reset();
-  ds.select(addres);
-  ds.write(0x44, 1); // start conversion, with parasite power on at the end
-  interrupts();  
+  m_sensors++; 
 }
 
 //-------------------------------------------------------------------------
@@ -262,6 +260,10 @@ float readSensor(byte *addres)
   byte lsb = ds.read();  
   byte msb = ds.read();
   byte sign = msb & 0xF0;
+  // After read we can run conversion on this sensor
+  ds.reset();
+  ds.select(addres);
+  ds.write(0x44, 1); // start conversion, with parasite power on at the end
   interrupts();
   if(sign == 0xF0)
     return -((int)((byte)~lsb) | ((int)((byte)~msb) << 8)) * MEASURE_RESOLUTION;
